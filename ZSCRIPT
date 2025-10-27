@@ -1,0 +1,292 @@
+version "4.14.2"
+
+Class DoomOrb : Inventory {
+	int age;
+	Default {
+	Inventory.MaxAmount 999999;
+	Inventory.Amount 1;
+	Inventory.PickupMessage "";
+	Inventory.PickupSound "orbs/inventory/up";
+	+BRIGHT;
+	}
+	
+	states {
+		Spawn:
+			DORB A 5;
+			DORB B 5 checkAge();
+			Loop;
+	}
+	action void checkAge(){
+		if(invoker.age >250) {
+			invoker.SetState(ResolveState("Decaying"));
+		}
+	}
+	
+	override void Tick() {
+		super.Tick();
+		if (self.owner) {return;}
+		age++;
+		if (age > 350) {
+			self.Destroy();
+		}
+	}
+	void makeBig() {
+		self.Scale = (2,2);
+		self.Amount = 10;
+		
+	}
+}
+Class MonsterDeathEventHandler: EventHandler{
+
+	override void WorldThingDied(WorldEvent e){
+		vector3 monsterPosition = e.Thing.pos;
+		double monsterHeight = e.Thing.height;		 
+		OrbMultiplierThinker multiplier = OrbMultiplierThinker.GetInstance();
+		
+		double monsterPoints = e.Thing.GetMaxHealth() * multiplier.orbMultiplier;
+		multiplier.RaiseMultiplier();
+		
+		
+		while(monsterPoints >=10) {
+			
+			DoomOrb orb = DoomOrb(Actor.Spawn("DoomOrb", 
+			(monsterPosition.x, 
+			monsterPosition.y, 
+			monsterPosition.z + monsterHeight/2)));
+			if(monsterPoints >= 100) {
+			//make big orbs
+				orb.makeBig();
+				monsterPoints -= 100;
+			}
+			else {
+				monsterPoints -= 10;
+			}
+			
+		
+			vector3 orbVelocity = (
+			frandom(-3, 3),
+			frandom(-3, 3), 
+			frandom(5, 10));
+			orb.vel = orbvelocity;
+		}
+	}
+
+}
+
+Class OrbUIHandler : EventHandler {
+	
+	override void RenderOverlay(RenderEvent e) {
+		if (AutoMapActive) {return;}
+		PlayerPawn p = players[consoleplayer].mo;
+		int orbs = p.CountInv("DoomOrb");
+		OrbMultiplierThinker o = OrbMultiplierThinker.GetReadOnlyInstance();
+		String multiplierText ="x1.0";
+		if (o) {
+			multiplierText = String.Format("x%.1f", o.orbMultiplier);
+		}
+		
+		Statusbar.BeginHUD();
+		HUDFont myfont = HUDFont.Create(smallfont);
+		HUDFont bgfont = HUDFont.Create(bigfont);
+		
+		Statusbar.DrawImage("HUDORB", (4,4), Statusbar.DI_SCREEN_LEFT_TOP | 
+		Statusbar. DI_ITEM_TOP | Statusbar.DI_ITEM_LEFT, scale: (2, 2));
+		
+		Statusbar.DrawString(myfont, orbs .. "", (100,10), 
+			Statusbar.DI_SCREEN_LEFT_TOP | Statusbar.DI_TEXT_ALIGN_RIGHT,
+			Font.CR_RED, scale: (2, 2));
+		
+		let multipliercolor = Font.CR_GOLD;
+		if (o.countdown > o.maxCountdown-5) {
+			multipliercolor = Font.CR_WHITE;
+		}
+		
+		Statusbar.DrawString(myfont, multiplierText, (120,6), 
+			Statusbar.DI_SCREEN_LEFT_TOP | Statusbar.DI_TEXT_ALIGN_LEFT,
+			multipliercolor, scale: (2, 2));
+		
+		vector2 barCoords = (4,40);
+		vector2 barScale = (2,2);
+		
+		TextureID tex = TexMan.CheckForTexture("HUDBAR");
+		vector2 size = TexMan.GetScaledSize(tex);
+		size = (size.x * barScale.x, size.y * barScale.y);
+		double ratio = 0;
+		if(o) {
+			ratio = o.countdown * 1.0 / o.maxCountdown;
+		}
+		size.x = size.x *ratio;
+		
+		Statusbar.SetClipRect(barCoords.x, barCoords.y, size.x, size.y);
+		Statusbar.DrawImage("HUDBAR", (4,40),
+			Statusbar.DI_SCREEN_LEFT_TOP | Statusbar.DI_ITEM_TOP |
+			Statusbar.DI_ITEM_LEFT, scale:barScale);
+		Statusbar.ClearClipRect();
+		
+		OrbBuyableItem buyableItem = OrbDataLibrary.GetReadOnlyInstance().GetTopBuyableItem(orbs);
+		if(buyableItem){
+		   Statusbar.DrawTexture(buyableItem.texture, (225, 18),
+				Statusbar.DI_SCREEN_LEFT_TOP | Statusbar.DI_ITEM_CENTER
+				);
+		   Statusbar.DrawString(myfont, buyableItem.cost .. "", (245,9),
+				Statusbar.DI_SCREEN_LEFT_TOP | Statusbar.DI_TEXT_ALIGN_LEFT,
+				Font.CR_WHITE, scale: (2,2)
+		   );
+
+		
+		}
+			
+	}
+	
+	override bool InputProcess(InputEvent e) {
+		int bind1, bind2 = Bindings.GetKeysForCommand("+user1");
+		if ((e.KeyScan == bind1 || e.KeyScan == bind2) && e.Type == InputEvent.Type_KeyDown) {
+			EventHandler.SendNetworkEvent("orbRecharge");
+		}
+		return false;
+	}
+	override void NetworkProcess(ConsoleEvent e) {
+		if(e.Name == "orbRecharge") {
+			PlayerPawn p = players[e.player].mo;
+			int orbs = p.CountInv("DoomOrb");
+			OrbBuyableItem buyableItem = OrbDataLibrary.GetReadOnlyInstance().GetTopBuyableItem(orbs);
+			if (buyableItem) {
+				p.TakeInventory("DoomOrb", buyableItem.cost);
+				p.GiveInventory(buyableItem.itemClassName, buyableItem.itemQuantity);
+				p.A_StartSound("misc/p_pkup");
+			}
+		}
+	}
+}
+
+Class OrbSetupHandler : EventHandler {
+	
+	override void WorldLoaded(WorldEvent e){
+		OrbMultiplierThinker.GetInstance();
+		OrbDataLibrary.GetInstance();
+		ThinkerIterator it = ThinkerIterator.Create("Health", Thinker.STAT_DEFAULT);
+		Health item = Health(it.next());
+		while (item != null) {
+			console.printf("Destroyed a %s", item.GetClassName());
+			item.Destroy();
+			item = Health(it.Next());
+		}
+	}
+	
+}
+
+class OrbMultiplierThinker : Thinker {
+	
+	double orbMultiplier;
+	int countdown;
+	int maxCountdown;
+
+	OrbMultiplierThinker Init() {
+		self.orbMultiplier = 1;
+		self.maxCountdown = 350;
+		ChangeStatNum(STAT_USER);
+		return self;
+	}
+	
+	void RaiseMultiplier() {
+		self.countdown = self.maxCountdown;
+		self.orbMultiplier += 0.1;
+		
+	}
+	
+	override void Tick(){
+		if(self.countdown > 0) {
+			self.countdown -= 1;
+			return;
+		}
+		self.orbMultiplier = 1;
+		
+	}
+	static OrbMultiplierThinker GetInstance() {
+		ThinkerIterator it = ThinkerIterator.Create("OrbMultiplierThinker", STAT_USER);
+		Thinker t = it.Next();
+		if(t) {
+			return OrbMultiplierThinker(t);
+		}
+		return new("OrbMultiplierThinker").Init();
+	}
+	
+	static clearscope OrbMultiplierThinker GetReadOnlyInstance() {
+		ThinkerIterator it = ThinkerIterator.Create("OrbMultiplierThinker", STAT_USER);
+		Thinker t = it.Next();
+		if(t) {
+			return OrbMultiplierThinker(t);
+		}
+		return null;
+	}
+}
+
+class OrbBuyableItem {
+	
+	int cost;
+	TextureID texture;
+	string itemClassName;
+	int itemQuantity;
+	
+	OrbBuyableItem Init(int cost, string texture, string itemClassName, int itemQuantity) {
+		self.cost = cost;
+		self.texture = TexMan.CheckForTexture(texture);
+		self.itemClassName = itemClassName;
+		self.itemQuantity = itemQuantity;
+		return self;
+	}
+
+}
+
+class OrbDataLibrary : Thinker {
+
+	Array<OrbBuyableItem> buyableItems;
+	
+	OrbDataLibrary Init() {
+		ChangeStatNum(STAT_STATIC);
+		self.buyableItems.push(new("OrbBuyableItem").Init(20, "STIMA0", "HealthBonus", 10));
+		self.buyableItems.push(new("OrbBuyableItem").Init(40, "MEDIA0", "HealthBonus",25));
+		self.buyableItems.push(new("OrbBuyableItem").Init(150, "SOULA0", "HealthBonus", 100));
+		self.buyableItems.push(new("OrbBuyableItem").Init(500, "PSTRA0", "PowerStrength", 1));
+		self.buyableItems.push(new("OrbBuyableItem").Init(1000, "MEGAA0", "Megasphere", 1));
+		return self;
+	}
+	
+	static OrbDataLibrary GetInstance() {
+		ThinkerIterator it = ThinkerIterator.Create("OrbDataLibrary", STAT_STATIC);
+		Thinker t = it.Next();
+		if(t) {
+			return OrbDataLibrary(t);
+		}
+		return new("OrbDataLibrary").Init();
+	}
+	
+	static clearscope OrbDataLibrary GetReadOnlyInstance() {
+		ThinkerIterator it = ThinkerIterator.Create("OrbDataLibrary", STAT_STATIC);
+		Thinker t = it.Next();
+		if(t) {
+			return OrbDataLibrary(t);
+		}
+		return null;
+	}
+	
+	clearscope OrbBuyableItem GetTopBuyableItem(int currentOrbs) {
+		int lowestCost = -1;
+		OrbBuyableItem selectedItem = null;
+		foreach (item : self.buyableItems) {
+			if (item.cost > lowestCost && item.cost <= currentOrbs) {
+				selectedItem = item;
+				lowestCost = item.cost;
+			}
+		}
+		return selectedItem;
+	}
+}
+
+
+
+
+
+
+
+
