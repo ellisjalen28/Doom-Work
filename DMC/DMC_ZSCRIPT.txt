@@ -1,4 +1,4 @@
-version "4.14.2"
+version "4.14.3"
 
 Class RedOrb : Inventory {
 	int age;
@@ -22,7 +22,7 @@ Class RedOrb : Inventory {
 	}
 }
 
-Class MonsterDeathEventHandler: EventHandler{
+Class MonsterDeathEventHandler : EventHandler{
 	
 	override void WorldThingDied(WorldEvent e){
 		vector3 monsterPosition = e.Thing.pos;
