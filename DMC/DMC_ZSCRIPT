@@ -22,7 +22,7 @@ Class RedOrb : Inventory {
 	}
 }
 
-Class MonsterDeathEventHandler : EventHandler{
+Class MonsterDeathEventHandler: EventHandler{
 	
 	override void WorldThingDied(WorldEvent e){
 		vector3 monsterPosition = e.Thing.pos;
