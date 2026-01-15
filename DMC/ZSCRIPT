@@ -27,9 +27,13 @@ Class MonsterDeathEventHandler : EventHandler{
 	override void WorldThingDied(WorldEvent e){
 		vector3 monsterPosition = e.Thing.pos;
 		double monsterHeight = e.Thing.height;
-		Actor orb = Actor.Spawn("RedOrb",( monsterPosition.x, monsterPosition.y, monsterPosition.z + monsterHeight/2));
-		vector3 orbVelocity =(frandom(-3,3),frandom(-3,3),frandom(5,10));
-		orb.vel = orbVelocity;
+		int maxHealth = e.Thing.GetMaxHealth();
+		
+		for(int i = 0; i < maxHealth; i += 10){
+			Actor orb = Actor.Spawn("RedOrb",( monsterPosition.x, monsterPosition.y, monsterPosition.z + monsterHeight/2));
+			vector3 orbVelocity =(frandom(-3,3),frandom(-3,3),frandom(5,10));
+			orb.vel = orbVelocity;
+		}
 		
 	}
 
