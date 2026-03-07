@@ -38,3 +38,9 @@ Class MonsterDeathEventHandler : EventHandler{
 	}
 
 }
+Class OrbUIHandler : EventHandler {
+
+
+
+	
+}
