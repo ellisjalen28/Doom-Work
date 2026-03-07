@@ -39,7 +39,7 @@ Class MonsterDeathEventHandler : EventHandler{
 
 }
 Class OrbUIHandler : EventHandler {
-	if(AutomapActive()) return;	
+	if(AutomapActive) {return;}	
 
 	PlayerPawn p = players[consoleplayer].mo;
 	int orbs = p.CountInv("RedOrb");
