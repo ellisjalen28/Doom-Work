@@ -39,8 +39,15 @@ Class MonsterDeathEventHandler : EventHandler{
 
 }
 Class OrbUIHandler : EventHandler {
+	PlayerPawn p = players[consoleplayer].mo;
+	int orbs = p.CountInv("RedOrb");
+
+	Statusbar.BeginHUD();
+	HUDFont myfont = HUDFont.Create(smallfont);
+	Statusbar.DrawString(myfont, orbs .. "", (100,10), 
+			Statusbar.DI_SCREEN_LEFT_TOP | Statusbar.DI_TEXT_ALIGN_RIGHT,
+			Font.CR_RED, scale: (2, 2));
 
 
 
-	
 }
