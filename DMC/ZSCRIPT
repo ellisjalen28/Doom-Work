@@ -4,7 +4,7 @@ Class RedOrb : Inventory {
 	int age;
 	Default {
 	Inventory.MaxAmount 999999;
-	Inventory.Amount 20;
+	Inventory.Amount 1;
 	Inventory.PickupMessage "Grabbed a Red Orb";
 	+BRIGHT;
 	}
