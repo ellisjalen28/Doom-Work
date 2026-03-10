@@ -4,17 +4,19 @@ Class RedOrb : Inventory {
 	int age;
 	Default {
 	Inventory.MaxAmount 999999;
-	Inventory.Amount 1;
+	Inventory.Amount 20;
 	Inventory.PickupMessage "Grabbed a Red Orb";
 	+BRIGHT;
 	}
 	states{
 		Spawn:
 			RORB A 5;
+			RORB B 5;
 			Loop;
 	}
 	override void Tick(){
 		super.Tick();
+		if(self.owner) {return;}
 		age++;
 		if(age > 350) {
 			self.Destroy();
