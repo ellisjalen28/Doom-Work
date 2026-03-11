@@ -6,6 +6,7 @@ Class RedOrb : Inventory {
 	Inventory.MaxAmount 999999;
 	Inventory.Amount 20;
 	Inventory.PickupMessage "Grabbed a Red Orb";
+	Inventory.PickupSound "orbs/inventory/up";
 	+BRIGHT;
 	}
 	states{
